@@ -8,13 +8,14 @@ use App\Models\Log;
 use App\Models\Reactivation;
 use App\Http\Controllers\Email;
 use PragmaRX\Google2FA\Google2FA;
+use Firebase\JWT\JWT;
 
 /* A FAIRE (fiche 3, partie 2, question 1) : inclure ci-dessous le use PHP pour la libriairie gérant l'A2F */
 
 // A FAIRE (fiche 3, partie 3, question 4) : inclure ci-dessous le use PHP pour la libriairie gérant le JWT
 
-class Connexion extends Controller
-{
+class Connexion extends Controller {
+
     public function afficherFormulaireConnexion() {
         return view('formulaireConnexion', []);
     }
@@ -47,62 +48,59 @@ class Connexion extends Controller
             return view('confirmation', ["messageConfirmation" => $messageAAfficher]);
         }
     }
+    
+    /* A FAIRE (fiche 3, partie 3, question 4) : générer un JWT une fois le code A2F validé + création du cookie + redirection vers la page de profil */
     public function boutonVerificationCodeA2F() {
         $validationFormulaire = false; // Booléen qui indique si les données du formulaire sont valides
         $messagesErreur = array(); // Tableau contenant les messages d'erreur à afficher
 
-        /* A FAIRE (fiche 3, partie 2, question 1) : vérification du code A2F */
-
-        public function boutonVerificationCodeA2F() {
-        $validationFormulaire = false; // Indique si le code est valide
-        $messagesErreur = array();    // Messages d'erreur à afficher
-
-        // Récupération de l'utilisateur connecté
-        $utilisateurId = session()->get('connexion');
-        $utilisateur = Utilisateur::find($utilisateurId);
+        $primaryKey = session()->get('connexion');
+        $utilisateur = Utilisateur::find($primaryKey);
 
         if (!$utilisateur) {
             $messagesErreur[] = "Utilisateur introuvable.";
         } else {
-            // Initialisation de Google2FA
             $google2fa = new Google2FA();
-
-            // Récupération du code soumis par l'utilisateur
             $codeA2F = $_POST['code_a2f'] ?? null;
 
             if (!$codeA2F) {
                 $messagesErreur[] = "Veuillez entrer le code de vérification.";
             } else {
-                // Vérification du code avec la clé secrète stockée
-                $secretKey = $utilisateur->secretA2F; // Clé secrète liée à l'utilisateur
+                $secretKey = $utilisateur->secretA2F;
                 $isValid = $google2fa->verifyKey($secretKey, $codeA2F);
 
                 if ($isValid) {
-                    // Validation réussie
                     $validationFormulaire = true;
-                    session()->forget('connexion'); // Supprime la session
+
+                    // Génération du JWT après validation réussie
+                    $jwtPayload = [
+                        "name" => $utilisateur->email,
+                        "sub" => $utilisateur->idUtilisateur,
+                        "iat" => time()
+                    ];
+
+                    $jwtSecret = "T3mUjGjhC6WuxyNGR2rkUt2uQgrlFUHx";
+                    $jwtToken = JWT::encode($jwtPayload, $jwtSecret, 'HS256');
+
+                    // Création du cookie "auth" pour 30 jours
+                    setcookie("auth", $jwtToken, time() + (30 * 24 * 60 * 60), "/", "", false, true);
+
+                    // Redirection vers la page de profil
+                    return redirect()->to('profil')->send();
                 } else {
-                    // Code incorrect
                     $messagesErreur[] = "Code incorrect. Veuillez réessayer.";
                 }
             }
         }
 
-        if ($validationFormulaire) {
-            // Redirection vers la page de profil après validation réussie
-            return redirect()->to('profil')->send();
-        } else {
-            // Retourne la vue avec les erreurs
+        if (!$validationFormulaire) {
             return view('formulaireA2F', ["messagesErreur" => $messagesErreur]);
         }
     }
-}
-
-        /* A FAIRE (fiche 3, partie 3, question 4) : générer un JWT une fois le code A2F validé + création du cookie + redirection vers la page de profil */
+        
 
         // Redirection vers la page du profil :
         //return redirect()->to('profil')->send();
-    }
     
     public function boutonConnexion() {
         $validationFormulaire = false; // Booléen qui indique si les données du formulaire sont valides
@@ -184,3 +182,4 @@ class Connexion extends Controller
             }
         }
     }
+}
