@@ -7,7 +7,6 @@ use App\Models\Utilisateur;
 use App\Models\Log;
 use App\Models\Reactivation;
 use App\Http\Controllers\Email;
-use PragmaRX\Google2FA\Google2FA;
 
 /* A FAIRE (fiche 3, partie 2, question 1) : inclure ci-dessous le use PHP pour la libriairie gérant l'A2F */
 
@@ -52,51 +51,6 @@ class Connexion extends Controller
         $messagesErreur = array(); // Tableau contenant les messages d'erreur à afficher
 
         /* A FAIRE (fiche 3, partie 2, question 1) : vérification du code A2F */
-
-        public function boutonVerificationCodeA2F() {
-        $validationFormulaire = false; // Indique si le code est valide
-        $messagesErreur = array();    // Messages d'erreur à afficher
-
-        // Récupération de l'utilisateur connecté
-        $utilisateurId = session()->get('connexion');
-        $utilisateur = Utilisateur::find($utilisateurId);
-
-        if (!$utilisateur) {
-            $messagesErreur[] = "Utilisateur introuvable.";
-        } else {
-            // Initialisation de Google2FA
-            $google2fa = new Google2FA();
-
-            // Récupération du code soumis par l'utilisateur
-            $codeA2F = $_POST['code_a2f'] ?? null;
-
-            if (!$codeA2F) {
-                $messagesErreur[] = "Veuillez entrer le code de vérification.";
-            } else {
-                // Vérification du code avec la clé secrète stockée
-                $secretKey = $utilisateur->secretA2F; // Clé secrète liée à l'utilisateur
-                $isValid = $google2fa->verifyKey($secretKey, $codeA2F);
-
-                if ($isValid) {
-                    // Validation réussie
-                    $validationFormulaire = true;
-                    session()->forget('connexion'); // Supprime la session
-                } else {
-                    // Code incorrect
-                    $messagesErreur[] = "Code incorrect. Veuillez réessayer.";
-                }
-            }
-        }
-
-        if ($validationFormulaire) {
-            // Redirection vers la page de profil après validation réussie
-            return redirect()->to('profil')->send();
-        } else {
-            // Retourne la vue avec les erreurs
-            return view('formulaireA2F', ["messagesErreur" => $messagesErreur]);
-        }
-    }
-}
 
         /* A FAIRE (fiche 3, partie 3, question 4) : générer un JWT une fois le code A2F validé + création du cookie + redirection vers la page de profil */
 
@@ -184,3 +138,4 @@ class Connexion extends Controller
             }
         }
     }
+}
